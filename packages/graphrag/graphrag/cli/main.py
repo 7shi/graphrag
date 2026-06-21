@@ -24,6 +24,7 @@ INVALID_METHOD_ERROR = "Invalid method"
 app = typer.Typer(
     help="GraphRAG: A graph-based retrieval-augmented generation (RAG) system.",
     no_args_is_help=True,
+    pretty_exceptions_enable=False,
 )
 
 
