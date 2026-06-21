@@ -27,25 +27,137 @@ return await _wrap_response_async(response, messages, is_streaming)
 ```
 
 ### 1.2 `rawlogs` の仕様
-XMLログはカレントディレクトリの `rawlogs/` 配下に保存されます（環境変数 `GRAPHRAG_RAWLOG_DIR` で変更可）。
-スレッドセーフ（排他制御）とメモリ内カウンターによる高速書き込みを実装しており、大量の非同期リクエストでもファイル競合を起こしません。
+XMLログはカレントディレクトリの `rawlogs/` 配下に保存されます。環境変数 `GRAPHRAG_RAWLOG_DIR` を指定すれば、`graphrag_quickstart/rawlogs/1-prompt-tune` のようにフェーズ別の出力先へ動的に切り替えられます。
+GraphRAG は `asyncio`・マルチスレッドで大量のLLMリクエストを並行処理するため、`threading.Lock` による排他制御と、`glob` を避けたメモリ内カウンター（`O(1)`）で未使用の連番ファイル名（`00001.xml`、`00002.xml` …）を高速に確保します。
 ログはLLMへのリクエスト履歴（`messages`）をそのままチャット形式で保存し、LLMからの返答も `role="assistant"` として同一階層にマージして記録します。
+なお、フックの対象は `completion`／`completion_async`（チャット補完）のみです。embedding（`embedding_async`）は別経路を通るため rawlogs には残らず、後述の純アルゴリズム的な処理（チャンキング・グラフ構築・クラスタリングなど）も同様に記録されません。
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<messages>
+<message role="system"><![CDATA[
+(システムプロンプト)
+]]></message>
+<message role="user"><![CDATA[
+(クエリ内容)
+]]></message>
+<message role="assistant"><![CDATA[
+(レスポンス内容)
+]]></message>
+</messages>
+```
 
 ### 1.3 分析補助ツール
 蓄積されたログを効率的に処理・分析するための Python スクリプトです。
 
 * **`analyze_log.py` (LLMを使用)**: XMLファイルに保存された会話コンテキストを復元してローカルLLMに渡し、内容を要約・解説させるスクリプトです（JSONL形式で随時出力・レジューム対応）。
-* **`analyze_fields.py` (LLM不要の高速処理)**: レスポンスがJSONであるかをパースし、JSONであればトップレベルのキー（フィールド）を抽出して、同一構造を持つファイルを自動的にグループ化します。
+* **`analyze_fields.py` (LLM不要の高速処理)**: レスポンスがJSONであるかをパースし、JSONであればトップレベルのキー（フィールド）を抽出して、同一構造を持つファイルを自動的にグループ化します。連番のファイル一覧は `{00001..00223}.xml` のようにブレース展開表記でコンパクトにまとめて出力します。
+
+いずれも `poe` タスク経由でディレクトリ単位で実行できます。
+
+```bash
+uv run poe analyze_log    graphrag_quickstart/rawlogs/1-prompt-tune
+uv run poe analyze_fields graphrag_quickstart/rawlogs/2-index
+```
 
 ### 1.4 長すぎるエラーメッセージの抑制
-ローカルモデル検証時に発生するエラーログ（スタックトレース）が長大になる問題は、CLIフレームワークの `typer` の機能によるものです。
-`main.py` にて `app = typer.Typer(..., pretty_exceptions_enable=False)` を追加することで、標準的な短いエラー表示に戻すことができます。
+ローカルモデル（Ollama など）の検証中に接続タイムアウト等が起きると、エラーログ（スタックトレース）が長大になり原因特定が難しくなります。これは CLIフレームワーク `typer` が、例外発生時に局所変数を含む詳細な色付きトレース（Pretty Exceptions）をデフォルトで表示するためです。
+エントリポイントの `packages/graphrag/graphrag/cli/main.py` で `app = typer.Typer(..., pretty_exceptions_enable=False)` を指定すると、Python標準の短いエラー表示に戻せます。
 
 ---
 
 ## 2. 実行プロセスとソースコード・ログの対応解析
 
 GraphRAG の各実行プロセスにおいて、実際のソースコード（対象コミットID: `6d02c235`）のどこでプロンプトが組み立てられ、LLMがどのような形式でレスポンスを出力しているか（XMLログ解析結果）をセットで解説します。
+
+### 2.0 GraphRAG 全体像（処理フローと生成データの概要）
+
+個別のログを追う前に、まず GraphRAG 全体がどのような流れで処理を行い、各フェーズで何が入力・出力されるのかを俯瞰します。GraphRAG は大きく「**前処理（プロンプトチューニング）**」「**インデックス作成（ナレッジグラフ構築）**」「**クエリ（検索・質問応答）**」の3段階で構成され、これらが LLM を多数回呼び出しながら段階的にデータを変換・蓄積していきます。
+
+> 以降のログ例は、題材テキストとして『クリスマス・キャロル』（Charles Dickens）を、解析・要約用のローカルLLMとして `gemma4:26b` を用いた実行結果に基づいています。
+
+#### 処理フローの全体像
+
+入力となる生テキスト（小説などのドキュメント）は、以下の流れでナレッジグラフ・コミュニティ要約・回答へと変換されます。
+
+```mermaid
+flowchart TD
+    docs["生テキスト（docs）"]
+    PT["1-prompt-tune（前処理）<br/>プロンプト最適化"]
+    IDX["2-index（インデックス作成）<br/>ナレッジグラフ構築"]
+    kg[("ナレッジグラフ＋<br/>コミュニティレポート")]
+    vs[("ベクトルストア<br/>LanceDB")]
+    G["3-global（Map-Reduce）"]
+    L["4-local（類似検索＋回答）"]
+    gans["テーマ分析報告書（Markdown）"]
+    lans["根拠ID付き個別回答"]
+
+    docs --> PT
+    PT -->|最適化済みプロンプト| IDX
+    docs -. 生テキスト .-> IDX
+    IDX --> kg
+    IDX --> vs
+    kg --> G
+    kg --> L
+    vs --> L
+    G --> gans
+    L --> lans
+```
+
+1. **`1-prompt-tune`（前処理）**: 生テキストの抜粋（`docs`）を入力に、テキストの性質に合わせてプロンプトを最適化します。ドメイン特定 → ペルソナ定義 → 評価基準 → エンティティ種別 → Few-Shot 例 → レポーター役割、の順に**最適化済みプロンプト群**を自動生成します。
+2. **`2-index`（インデックス作成）**: 最適化済みプロンプトを用いてナレッジグラフを構築します。
+   * テキストユニットからエンティティ／関係性を抽出（`gleaning` ループで抽出漏れを補完）
+   * 異なるチャンクから得た同一エンティティの説明をマージ（名寄せ・矛盾解消）
+   * グラフからコミュニティを検出
+   * コミュニティごとに構造化レポート（JSON）を生成
+3. **`3-global`（Global Search／マクロな問い）**: ドキュメント全体を跨ぐ問いに対し、Map-Reduce で回答します。Map でコミュニティレポートから要点を抽出し、Reduce で要点を集約して**テーマ分析報告書（Markdown）**を生成します。
+4. **`4-local`（Local Search／ミクロな問い）**: 特定のエンティティに関する問いに対し、関連するエンティティ・関係性・生テキストを収集して**根拠ID付きの個別回答**を一発で生成します。
+
+`3-global` と `4-local` は、いずれも `2-index` が生成したナレッジグラフ・コミュニティレポートを参照する独立したクエリ経路です。
+
+#### フェーズごとの入出力と生成データ
+
+| フェーズ | 主な入力 | LLM が行う処理 | 生成されるデータ |
+| --- | --- | --- | --- |
+| **1. prompt-tune** | 生テキストの抜粋（`docs`） | ドメイン・ペルソナ・評価基準・エンティティ種別・Few-Shot 例・レポーター役割の生成 | 後続フェーズで使う**最適化済みプロンプト群**（テキスト＋JSON） |
+| **2. index** | テキストユニット、`entity_types` | エンティティ／関係性の抽出（gleaning ループ）、説明のマージ・要約、コミュニティレポート生成 | **ナレッジグラフ**（エンティティ・関係性）、統合済みエンティティ説明、**構造化コミュニティレポート（JSON）** |
+| **3. global search** | コミュニティレポート、ユーザーの問い | Map で要点＋重要度スコアを抽出、Reduce で集約 | 要点リスト（JSON）→ **最終回答（Markdown のテーマ分析報告書）** |
+| **4. local search** | クエリに類似するエンティティ・関係性・コベリエイト・生テキスト | コンテキストを組み立てて一発回答 | **根拠ID付きの個別回答テキスト** |
+
+#### データ形式の特徴
+
+GraphRAG が LLM から受け取るデータは、用途に応じて大きく3系統に分かれます。XMLログを解析する際は、どの系統かを意識すると構造が把握しやすくなります。
+
+* **自然言語テキスト出力**: ドメイン特定、ペルソナ定義、エンティティ説明のマージ、Global Search の最終回答、Local Search の回答など。人間が読む説明文や、後続プロンプトに埋め込む文字列として利用されます。
+* **構造化（JSON）出力**: エンティティ種別（`EntityTypesResponse`）、コミュニティレポート（`CommunityReportResponse`）、Global Search の Map ステップの要点リストなど。Pydantic モデルを `response_format` に指定し、後続処理がプログラム的にパースできる厳密な形式で取得します。
+* **独自デリミタ形式**: 抽出フェーズの Few-Shot 例では、`<|>` や `##` といった独自デリミタでエンティティ・関係性を区切る形式が用いられます。
+
+#### LLM 呼び出し以外の処理（rawlogs に映らない部分）
+
+GraphRAG は LLM 呼び出しだけで成り立っているわけではなく、その**前後に純アルゴリズム的（決定論的）な処理**を多数挟みます。rawlogs に現れるのは LLM との対話だけなので、全体像をつかむには、ログに映らない以下の処理を意識する必要があります。
+
+* **チャンキング**: 入力ドキュメントを tiktoken でトークン分割し、`n_tokens` 付きの `text_units`（抽出の入力単位）を生成します。
+* **グラフ構築**: LLM が返したデリミタ文字列（`<|>`／`##`）を**コード側でパース**し、エンティティ・関係性を表形式へ変換・マージします。
+* **次数計算・重複統合**: 同名ノードを名寄せし、各ノードの次数（degree）を計算します。
+* **コミュニティ検出**: 構築したグラフに対し、階層的 **Leiden** アルゴリズム（graspologic）でクラスタリングを行い「コミュニティ」を決定します。
+* **embedding 生成**: `text_units`・`entities`・`community_reports` をベクトル化し、ベクトルストア（LanceDB）に格納します。**補完とは別の API（`embedding_async`）を使うため rawlogs には残りません。**
+* **クエリ時のベクトル検索・コンテキスト整形**: クエリを embedding 化して類似検索を行い、得られた情報をトークン予算内に収まるよう貪欲に詰め込みます。
+
+`graphrag index`（standard 法）のワークフローは以下の順に実行されます。LLM を使うのは抽出・コミュニティレポート生成など一部のステップのみで、残りはすべて非LLM処理です。
+
+| 順 | workflow | 処理内容 | LLM |
+| --- | --- | --- | --- |
+| 1 | `create_base_text_units` | チャンキング（tiktoken でトークン分割） | – |
+| 2 | `create_final_documents` | ドキュメントのメタデータ確定 | – |
+| 3 | `extract_graph` | エンティティ／関係性の抽出（gleaning ループ） | ✓ |
+| 4 | `finalize_graph` | デリミタのパース・マージ・次数計算・重複統合 | – |
+| 5 | `extract_covariates`（任意） | クレーム（共変量）の抽出 | ✓ |
+| 6 | `create_communities` | 階層的 Leiden によるコミュニティ検出 | – |
+| 7 | `create_final_text_units` | テキストユニットへ entity／relationship ID を付与 | – |
+| 8 | `create_community_reports` | 構造化コミュニティレポート生成 | ✓ |
+| 9 | `generate_text_embeddings` | embedding 生成 → ベクトルストア格納 | – |
+
+以降のセクションでは、この全体像を踏まえ、各フェーズの具体的なログ（XML）とソースコードを突き合わせて詳細を解説します。
 
 ### 2.1 `1-prompt-tune` (自動プロンプトチューニング)
 インデックス作成やクエリ処理用のシステムプロンプトを、テキストデータに合わせて動的に最適化するフェーズです。
@@ -97,23 +209,29 @@ You are a Literary Structural Analyst, with expertise in analyzing the themes...
 
 
 ### 2.2 `2-index` (インデックス作成 / ナレッジグラフ構築)
-テキストからエンティティと関係性を抽出し、重複を統合した後にグラフ構造を検出してコミュニティ要約レポートを作成します。
+テキストからエンティティと関係性を抽出し、重複を統合した後にグラフ構造を検出してコミュニティ要約レポートを作成します。全体で246個のログが記録され、おおよそ以下の区間でステップが進みます。
+なお、抽出に先立って入力ドキュメントは**チャンキング**され、`n_tokens` 付きの `text_units` が各抽出呼び出しの入力になります（このチャンキング自体は非LLM処理のため rawlogs には現れません）。
 
-#### 00002.xml 〜 00081.xml（エンティティ・関係性の抽出）
-テキストユニットと `entity_types` を送信します。1回目の抽出後、`_max_gleanings` 回を上限に `CONTINUE_PROMPT` を追加して抽出漏れを防ぐループを回します。
+#### 00001.xml（疎通確認）
+LLM API が正常に稼働しているかを確かめるテスト接続です（`Hello World` を返すのみ）。
+
+#### 00002.xml 〜 00081.xml（エンティティ・関係性の抽出 / 全80ファイル）
+テキストユニットと `entity_types` を送信します。1回目の抽出後、`_max_gleanings` 回を上限に `CONTINUE_PROMPT` で抽出漏れを補い、さらに `LOOP_PROMPT` で「まだエンティティが残っているか」を判定し、「Y」以外の返答で打ち切るループを回します。
 ```python:packages/graphrag/graphrag/index/operations/extract_graph/graph_extractor.py:GraphExtractor._process_document
 for i in range(self._max_gleanings):
     messages_builder.add_user_message(CONTINUE_PROMPT)
     ...
 ```
 小説本文から、登場人物、場所、出来事の結びつきを検出し抽出します。
+抽出後、LLM が返したデリミタ文字列は**コード側でパース**され、エンティティ・関係性が表形式へ変換・マージされ、各ノードの次数（degree）が計算されます（`finalize_graph` の非LLM処理）。
 
-#### 00082.xml 〜 00223.xml（エンティティの要約・マージと矛盾解消）
+#### 00082.xml 〜 00223.xml（エンティティの要約・マージと矛盾解消 / 全142ファイル）
 異なるチャンクから抽出された同一エンティティの説明リストを取得し、トークン上限を計算しながら LLM に統合させます（`_summarize_descriptions_with_llm` in `description_summary_extractor.py`）。
 断片的な記述を名寄せし、1つの整理された紹介文へと統合します。
 
 #### 00224.xml（構造化コミュニティレポートの生成） ※JSON出力
-「コミュニティ」内のエンティティ情報をプロンプトに埋め込み、Pydantic モデル `CommunityReportResponse` を指定して厳密な JSON で出力させます（`CommunityReportsExtractor.__call__` in `community_reports_extractor.py`）。
+このレポート生成の**前段**で、グラフに対し階層的 **Leiden** アルゴリズムによるコミュニティ検出（`create_communities`、非LLM）が走り、レポート対象となる「コミュニティ」が決定されています。
+ここでは「コミュニティ」内のエンティティ情報をプロンプトに埋め込み、Pydantic モデル `CommunityReportResponse` を指定して厳密な JSON で出力させます（`CommunityReportsExtractor.__call__` in `community_reports_extractor.py`）。
 ```json:結果
 {
     "title": "エベネザー・スクルージの精神的変容と超自然的ネットワーク",
@@ -123,12 +241,17 @@ for i in range(self._max_gleanings):
 }
 ```
 
+最後に、ここまでで得られた `text_units`・`entities`・`community_reports` を **embedding 化してベクトルストア（LanceDB）に格納する** `generate_text_embeddings` が走ります。この処理はクエリ時の類似検索の土台になりますが、補完とは別 API を使うため rawlogs には現れません。
+
 
 ### 2.3 `3-global` (Global Searchによる全体質問)
-ドキュメント全体を跨ぐマクロな問いに対する質問応答プロセスです（Map-Reduce）。
+ドキュメント全体を跨ぐマクロな問いに対する質問応答プロセスです（Map-Reduce）。以降のログは、次のクエリを投げた際のものです。
+```bash
+uv run graphrag query --method global "この物語の主要なテーマは何ですか？"
+```
 
 #### 00001.xml & 00002.xml（要点抽出 Mapステップ） ※JSON出力
-コミュニティレポートのサブセットを `map_system_prompt` に埋め込み、返却された JSON から要点と重要度スコアを抽出します（`_map_response_single_batch` in `global_search/search.py`）。
+Map に渡すコミュニティレポートのサブセットは、ランク（`rank`）とトークン予算に基づいて選定・バッチ化されます（既定では非LLM処理）。これを `map_system_prompt` に埋め込み、返却された JSON から要点と重要度スコアを抽出します（`_map_response_single_batch` in `global_search/search.py`）。
 ```json:結果
 {
     "points": [
@@ -138,18 +261,22 @@ for i in range(self._max_gleanings):
 ```
 
 #### 00003.xml（回答集約 Reduceステップ）
-得られた要点リストを重要度スコアの降順にソートして結合し、`reduce_system_prompt` に埋め込んで最終回答を生成させます（`_reduce_response` in `global_search/search.py`）。
+得られた要点リストを重要度スコアの降順にソートし、トークン予算内に収まるよう結合する処理（非LLM）を経て、`reduce_system_prompt` に埋め込んで最終回答を生成させます（`_reduce_response` in `global_search/search.py`）。
 重複排除と論理整合性の調整が行われ、最終的な Markdown 形式のテーマ分析報告書が出力されます。
 
 
 ### 2.4 `4-local` (Local Searchによる個別質問)
-特定のエンティティや直接関係する情報を抽出して答えるミクロな問いへの応答です。
+特定のエンティティや直接関係する情報を抽出して答えるミクロな問いへの応答です。以降のログは、次のクエリを投げた際のものです。
+```bash
+uv run graphrag query --method local "スクルージはどのような人物で、誰とどのような関係がありますか？"
+```
 
 #### 00001.xml（ローカルコンテキストからの直接回答）
-`LocalContextBuilder` でクエリキーワードに類似するエンティティ、リレーション、コベリエイト、生テキストをコンテキストウィンドウ内に収まるよう収集し、システムプロンプトに埋め込んで一発で回答を生成させます（`LocalSearch.search` in `local_search/search.py`）。
-スクルージの性格や周辺人物との関係性が整理され、根拠ID付きの丁寧な解説テキストとして出力されます。
+この回答生成の**前段**で、`LocalContextBuilder` はまずクエリを embedding 化し、エンティティ説明のベクトルに対して**類似検索**を行って関連エンティティを選び出します（`map_query_to_entities` in `entity_extraction.py`、非LLM）。続いて関連リレーション・コベリエイト・生テキストを、コンテキストウィンドウのトークン予算内に収まるよう貪欲に詰め込みます。
+こうして組み立てたコンテキストをシステムプロンプトに埋め込み、一発で回答を生成させます（`LocalSearch.search` in `local_search/search.py`）。スクルージの性格や周辺人物との関係性が整理され、根拠ID付きの丁寧な解説テキストとして出力されます。
 
 
 ### 2.5 まとめ
 XMLログのパースとソースコードを対応させることで、GraphRAGの高度な動作ロジック（チャンキング、抽出・マージ、コミュニティ要約、Map-Reduceやローカル検索のコンテキスト構築）がどのように実装されているかが明確に理解できます。
+ただし rawlogs が捉えるのは LLM との対話のみであり、チャンキング・グラフ構築・Leiden によるコミュニティ検出・embedding 生成やベクトル検索といった非LLM処理は別途存在します。これらを併せて意識することで、はじめて GraphRAG の全体像が見えてきます。
 ログを監視・分析することは、LLMを使ったナレッジグラフ構築の品質をデバッグし、プロンプトを洗練させる上で非常に強力な手段となります。
