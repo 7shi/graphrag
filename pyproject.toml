@@ -22,6 +22,9 @@ authors = [
     {name = "Sarah Smith", email = "smithsarah@microsoft.com"},
 ]
 requires-python = ">=3.11,<3.14"
+dependencies = [
+    "llm7shi",
+]
 
 [dependency-groups]
 dev = [
@@ -37,10 +40,10 @@ dev = [
     "pandas-stubs~=2.3",
     "poethepoet~=0.31",
     "pyright~=1.1",
-    "pytest~=8.3",
-    "pytest-asyncio~=0.24",
-    "pytest-dotenv~=0.5",
-    "pytest-timeout~=2.3",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-dotenv>=0.5",
+    "pytest-timeout>=2.3",
     "ruff~=0.8",
     "semversioner~=2.0",
     "update-toml~=0.2",
@@ -61,6 +64,7 @@ graphrag-storage = { workspace = true }
 graphrag-cache = { workspace = true }
 graphrag-vectors = { workspace = true }
 graphrag-llm = { workspace = true }
+llm7shi = { git = "https://github.com/7shi/llm7shi.git" }
 
 # Keep poethepoet for task management to minimize changes
 [tool.poe.tasks]
@@ -105,6 +109,9 @@ serve_docs = "mkdocs serve"
 build_docs = "mkdocs build"
 _build_packages = "uv build --all-packages"
 _sync = "uv sync --all-packages"
+analyze_fields = "python rawlog/analyze_fields.py"
+analyze_log    = "python rawlog/analyze_log.py"
+show_response  = "python rawlog/show_response.py"
 
 [[tool.poe.tasks.build]]
 sequence = ['_copy_build_assets', '_build_packages']
