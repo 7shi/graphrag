@@ -1224,6 +1224,7 @@ name = "graphrag-monorepo"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "graphrag" },
     { name = "llm7shi" },
 ]
 
@@ -1252,7 +1253,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "llm7shi", git = "https://github.com/7shi/llm7shi.git" }]
+requires-dist = [
+    { name = "graphrag", editable = "packages/graphrag" },
+    { name = "llm7shi", git = "https://github.com/7shi/llm7shi.git" },
+]
 
 [package.metadata.requires-dev]
 dev = [

@@ -23,6 +23,7 @@ authors = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "graphrag",
     "llm7shi",
 ]
 
@@ -57,6 +58,7 @@ package = false
 members = ["packages/*"]
 
 [tool.uv.sources]
+graphrag = { workspace = true }
 graphrag-chunking = { workspace = true }
 graphrag-common = { workspace = true }
 graphrag-input = { workspace = true }
