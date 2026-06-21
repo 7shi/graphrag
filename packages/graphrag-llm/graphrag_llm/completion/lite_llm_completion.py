@@ -37,6 +37,11 @@ if TYPE_CHECKING:
         ResponseFormat,
     )
 
+from graphrag_llm.completion.rawlog_helper import (
+    _wrap_response,
+    _wrap_response_async,
+)
+
 
 litellm.suppress_debug_info = True
 litellm.enable_json_schema_validation = True
@@ -163,7 +168,7 @@ class LiteLLMCompletion(LLMCompletion):
                     response.content, response_format
                 )
                 response.formatted_response = structured_response
-            return response
+            return _wrap_response(response, messages, is_streaming)
         finally:
             if request_metrics is not None:
                 self._metrics_store.update_metrics(metrics=request_metrics)
@@ -202,7 +207,7 @@ class LiteLLMCompletion(LLMCompletion):
                     response.content, response_format
                 )
                 response.formatted_response = structured_response
-            return response
+            return await _wrap_response_async(response, messages, is_streaming)
         finally:
             if request_metrics is not None:
                 self._metrics_store.update_metrics(metrics=request_metrics)
