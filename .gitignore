@@ -67,3 +67,6 @@ packages/*/LICENSE
 # Notebooks outputs
 packages/graphrag-*/example_notebooks/**/output
 packages/graphrag-*/example_notebooks/**/cache
+
+# rawlog outputs
+graphrag_quickstart/
