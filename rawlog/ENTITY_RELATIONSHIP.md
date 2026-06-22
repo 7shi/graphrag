@@ -148,6 +148,9 @@ longer used by the default flow.
 ## Verification
 
 - `uv run pytest tests/unit/indexing/verbs/entities/extraction/strategies/graph_intelligence/test_gi_entity_extraction.py` → 3 passed.
-- `uv run python -c "import graphrag.index.operations.extract_graph.graph_extractor"` and
-  `GRAPH_EXTRACTION_PROMPT.format(...)` succeed (escaping correct).
+- `uv run python -c "import graphrag.index.operations.extract_graph.graph_extractor"`
+  imports cleanly. `_process_document` fills the prompt via `str.replace`
+  (`{entity_types}` / `{input_text}` only), leaving the literal JSON braces in
+  the schema/examples intact; `str.format` is intentionally not used, so a tuned
+  prompt with single-brace JSON works verbatim.
 - `grep -rn GRAPHRAG_TUPLE_DELIMITER packages/` → 0 matches (env var fully removed).
