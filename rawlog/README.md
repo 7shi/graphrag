@@ -14,6 +14,8 @@ GraphRAG の使い方・内部動作を、2 つの視点からまとめた記事
 | [GraphRAG-B.md](GraphRAG-B.md) | **開発者視点** | ソースコードと LLM 処理から動作概要を説明する技術ドキュメント。LLM ログ記録機能の改造、ログ解析、ソースコードとログの対応関係まで踏み込む。 |
 | [DIFF.md](DIFF.md) | **変更差分** | 本フォーク（`feature/llm-rawlog`）が本家 GraphRAG に加えた変更を `main` との差分でファイル単位に要約。rawlog 機能の追加と、その調査で判明した Gemma 4 の書式逸脱を受けたグラフ抽出の構造化出力（JSON）移行の経緯を記録。 |
 | [ENTITY_RELATIONSHIP.md](ENTITY_RELATIONSHIP.md) | **設計ノート** | entity / relationship 抽出をタプル区切りから構造化出力（JSON）へ移行した理由と実装の詳細。デリミタ問題・Pydantic スキーマ・gleaning・prompt-tune への波及・検証手順までを記録。 |
+| [TAGORE.md](TAGORE.md) | **実験まとめ** | 構造化出力による抽出の動作確認の最終結果。Tagore 小説・50 問で index 規模・description 空率・QA 品質を測り、書式由来の脱落が構造化出力で根絶されたことを実証。 |
+| [GRAPHRAG.md](GRAPHRAG.md) | **アーキテクチャ考察** | 抽出層（グラフ）の忠実度を上げると GraphRAG の何が変わり何が残るか。3 層構造・消えた限界／残った限界・ボトルネックの下流移動・残る手当てを整理。 |
 
 ### 元資料（作業ログ）
 
