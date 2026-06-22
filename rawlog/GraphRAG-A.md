@@ -67,7 +67,7 @@ GraphRAG は内部で [LiteLLM](https://docs.litellm.ai/) を介してモデル�
 
 > [!IMPORTANT]
 > **構造化出力 (JSON) への対応が必須です。**
-> GraphRAG は解析の途中で、エンティティ種別やコミュニティ要約を「決まった形の JSON」で受け取る場面があります。選ぶモデルは **JSON スキーマに準拠した構造化出力（Structured Outputs / JSON Mode）** をサポートしている必要があります。
+> GraphRAG は解析の途中で、**エンティティ・関係性の抽出**やエンティティ種別・コミュニティ要約を「決まった形の JSON」で受け取ります。選ぶモデルは **JSON スキーマに準拠した構造化出力（Structured Outputs / JSON Mode）** をサポートしている必要があります。
 
 ### 2.2 プロジェクトを作る
 
