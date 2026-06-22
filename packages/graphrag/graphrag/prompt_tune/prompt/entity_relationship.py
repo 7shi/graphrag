@@ -137,7 +137,7 @@ Given a text document that is potentially relevant to this activity and a list o
 - entity_type: One of the following types: [{entity_types}]
 - entity_description: Comprehensive description of the entity's attributes and activities
 
-Format each entity output as a JSON entry with the following format:
+Format each entity as a JSON object with the following format:
 
 {{"name": <entity name>, "type": <type>, "description": <entity description>}}
 
@@ -148,11 +148,13 @@ For each pair of related entities, extract the following information:
 - relationship_description: explanation as to why you think the source entity and the target entity are related to each other
 - relationship_strength: an integer score between 1 to 10, indicating strength of the relationship between the source entity and target entity
 
-Format each relationship as a JSON entry with the following format:
+Format each relationship as a JSON object with the following format:
 
-{{"source": <source_entity>, "target": <target_entity>, "relationship": <relationship_description>, "relationship_strength": <relationship_strength>}}
+{{"source": <source_entity>, "target": <target_entity>, "description": <relationship_description>, "strength": <relationship_strength>}}
 
-3. Return output in {language} as a single list of all JSON entities and relationships identified in steps 1 and 2.
+3. Return output in {language} as a single JSON object with two keys, "entities" and "relationships", each holding the list of objects identified in steps 1 and 2:
+
+{{"entities": [...], "relationships": [...]}}
 
 4. If you have to translate into {language}, just translate the descriptions, nothing else!
 
@@ -164,12 +166,7 @@ Text:
 The Verdantis's Central Institution is scheduled to meet on Monday and Thursday, with the institution planning to release its latest policy decision on Thursday at 1:30 p.m. PDT, followed by a press conference where Central Institution Chair Martin Smith will take questions. Investors expect the Market Strategy Committee to hold its benchmark interest rate steady in a range of 3.5%-3.75%.
 ######################
 Output:
-[
-  {{"name": "CENTRAL INSTITUTION", "type": "ORGANIZATION", "description": "The Central Institution is the Federal Reserve of Verdantis, which is setting interest rates on Monday and Thursday"}},
-  {{"name": "MARTIN SMITH", "type": "PERSON", "description": "Martin Smith is the chair of the Central Institution"}},
-  {{"name": "MARKET STRATEGY COMMITTEE", "type": "ORGANIZATION", "description": "The Central Institution committee makes key decisions about interest rates and the growth of Verdantis's money supply"}},
-  {{"source": "MARTIN SMITH", "target": "CENTRAL INSTITUTION", "relationship": "Martin Smith is the Chair of the Central Institution and will answer questions at a press conference", "relationship_strength": 9}}
-]
+{{"entities": [{{"name": "CENTRAL INSTITUTION", "type": "ORGANIZATION", "description": "The Central Institution is the Federal Reserve of Verdantis, which is setting interest rates on Monday and Thursday"}}, {{"name": "MARTIN SMITH", "type": "PERSON", "description": "Martin Smith is the chair of the Central Institution"}}, {{"name": "MARKET STRATEGY COMMITTEE", "type": "ORGANIZATION", "description": "The Central Institution committee makes key decisions about interest rates and the growth of Verdantis's money supply"}}], "relationships": [{{"source": "MARTIN SMITH", "target": "CENTRAL INSTITUTION", "description": "Martin Smith is the Chair of the Central Institution and will answer questions at a press conference", "strength": 9}}]}}
 
 ######################
 Example 2:
@@ -179,11 +176,7 @@ TechGlobal's (TG) stock skyrocketed in its opening day on the Global Exchange Th
 TechGlobal, a formerly public company, was taken private by Vision Holdings in 2014. The well-established chip designer says it powers 85% of premium smartphones.
 ######################
 Output:
-[
-  {{"name": "TECHGLOBAL", "type": "ORGANIZATION", "description": "TechGlobal is a stock now listed on the Global Exchange which powers 85% of premium smartphones"}},
-  {{"name": "VISION HOLDINGS", "type": "ORGANIZATION", "description": "Vision Holdings is a firm that previously owned TechGlobal"}},
-  {{"source": "TECHGLOBAL", "target": "VISION HOLDINGS", "relationship": "Vision Holdings formerly owned TechGlobal from 2014 until present", "relationship_strength": 5}}
-]
+{{"entities": [{{"name": "TECHGLOBAL", "type": "ORGANIZATION", "description": "TechGlobal is a stock now listed on the Global Exchange which powers 85% of premium smartphones"}}, {{"name": "VISION HOLDINGS", "type": "ORGANIZATION", "description": "Vision Holdings is a firm that previously owned TechGlobal"}}], "relationships": [{{"source": "TECHGLOBAL", "target": "VISION HOLDINGS", "description": "Vision Holdings formerly owned TechGlobal from 2014 until present", "strength": 5}}]}}
 
 ######################
 Example 3:
@@ -199,28 +192,7 @@ They were welcomed by senior Aurelian officials and are now on their way to Aure
 The Aurelians include 39-year-old businessman Samuel Namara, who has been held in Tiruzia's Alhamia Prison, as well as journalist Durke Bataglani, 59, and environmentalist Meggie Tazbah, 53, who also holds Bratinas nationality.
 ######################
 Output:
-[
-  {{"name": "FIRUZABAD", "type": "GEO", "description": "Firuzabad held Aurelians as hostages"}},
-  {{"name": "AURELIA", "type": "GEO", "description": "Country seeking to release hostages"}},
-  {{"name": "QUINTARA", "type": "GEO", "description": "Country that negotiated a swap of money in exchange for hostages"}},
-  {{"name": "TIRUZIA", "type": "GEO", "description": "Capital of Firuzabad where the Aurelians were being held"}},
-  {{"name": "KROHAARA", "type": "GEO", "description": "Capital city in Quintara"}},
-  {{"name": "CASHION", "type": "GEO", "description": "Capital city in Aurelia"}},
-  {{"name": "SAMUEL NAMARA", "type": "PERSON", "description": "Aurelian who spent time in Tiruzia's Alhamia Prison"}},
-  {{"name": "ALHAMIA PRISON", "type": "GEO", "description": "Prison in Tiruzia"}},
-  {{"name": "DURKE BATAGLANI", "type": "PERSON", "description": "Aurelian journalist who was held hostage"}},
-  {{"name": "MEGGIE TAZBAH", "type": "PERSON", "description": "Bratinas national and environmentalist who was held hostage"}},
-  {{"source": "FIRUZABAD", "target": "AURELIA", "relationship": "Firuzabad negotiated a hostage exchange with Aurelia", "relationship_strength": 2}},
-  {{"source": "QUINTARA", "target": "AURELIA", "relationship": "Quintara brokered the hostage exchange between Firuzabad and Aurelia", "relationship_strength": 2}},
-  {{"source": "QUINTARA", "target": "FIRUZABAD", "relationship": "Quintara brokered the hostage exchange between Firuzabad and Aurelia", "relationship_strength": 2}},
-  {{"source": "SAMUEL NAMARA", "target": "ALHAMIA PRISON", "relationship": "Samuel Namara was a prisoner at Alhamia prison", "relationship_strength": 8}},
-  {{"source": "SAMUEL NAMARA", "target": "MEGGIE TAZBAH", "relationship": "Samuel Namara and Meggie Tazbah were exchanged in the same hostage release", "relationship_strength": 2}},
-  {{"source": "SAMUEL NAMARA", "target": "DURKE BATAGLANI", "relationship": "Samuel Namara and Durke Bataglani were exchanged in the same hostage release", "relationship_strength": 2}},
-  {{"source": "MEGGIE TAZBAH", "target": "DURKE BATAGLANI", "relationship": "Meggie Tazbah and Durke Bataglani were exchanged in the same hostage release", "relationship_strength": 2}},
-  {{"source": "SAMUEL NAMARA", "target": "FIRUZABAD", "relationship": "Samuel Namara was a hostage in Firuzabad", "relationship_strength": 2}},
-  {{"source": "MEGGIE TAZBAH", "target": "FIRUZABAD", "relationship": "Meggie Tazbah was a hostage in Firuzabad", "relationship_strength": 2}},
-  {{"source": "DURKE BATAGLANI", "target": "FIRUZABAD", "relationship": "Durke Bataglani was a hostage in Firuzabad", "relationship_strength": 2}}
-]
+{{"entities": [{{"name": "FIRUZABAD", "type": "GEO", "description": "Firuzabad held Aurelians as hostages"}}, {{"name": "AURELIA", "type": "GEO", "description": "Country seeking to release hostages"}}, {{"name": "QUINTARA", "type": "GEO", "description": "Country that negotiated a swap of money in exchange for hostages"}}, {{"name": "TIRUZIA", "type": "GEO", "description": "Capital of Firuzabad where the Aurelians were being held"}}, {{"name": "KROHAARA", "type": "GEO", "description": "Capital city in Quintara"}}, {{"name": "CASHION", "type": "GEO", "description": "Capital city in Aurelia"}}, {{"name": "SAMUEL NAMARA", "type": "PERSON", "description": "Aurelian who spent time in Tiruzia's Alhamia Prison"}}, {{"name": "ALHAMIA PRISON", "type": "GEO", "description": "Prison in Tiruzia"}}, {{"name": "DURKE BATAGLANI", "type": "PERSON", "description": "Aurelian journalist who was held hostage"}}, {{"name": "MEGGIE TAZBAH", "type": "PERSON", "description": "Bratinas national and environmentalist who was held hostage"}}], "relationships": [{{"source": "FIRUZABAD", "target": "AURELIA", "description": "Firuzabad negotiated a hostage exchange with Aurelia", "strength": 2}}, {{"source": "QUINTARA", "target": "AURELIA", "description": "Quintara brokered the hostage exchange between Firuzabad and Aurelia", "strength": 2}}, {{"source": "QUINTARA", "target": "FIRUZABAD", "description": "Quintara brokered the hostage exchange between Firuzabad and Aurelia", "strength": 2}}, {{"source": "SAMUEL NAMARA", "target": "ALHAMIA PRISON", "description": "Samuel Namara was a prisoner at Alhamia prison", "strength": 8}}, {{"source": "SAMUEL NAMARA", "target": "MEGGIE TAZBAH", "description": "Samuel Namara and Meggie Tazbah were exchanged in the same hostage release", "strength": 2}}, {{"source": "SAMUEL NAMARA", "target": "DURKE BATAGLANI", "description": "Samuel Namara and Durke Bataglani were exchanged in the same hostage release", "strength": 2}}, {{"source": "MEGGIE TAZBAH", "target": "DURKE BATAGLANI", "description": "Meggie Tazbah and Durke Bataglani were exchanged in the same hostage release", "strength": 2}}, {{"source": "SAMUEL NAMARA", "target": "FIRUZABAD", "description": "Samuel Namara was a hostage in Firuzabad", "strength": 2}}, {{"source": "MEGGIE TAZBAH", "target": "FIRUZABAD", "description": "Meggie Tazbah was a hostage in Firuzabad", "strength": 2}}, {{"source": "DURKE BATAGLANI", "target": "FIRUZABAD", "description": "Durke Bataglani was a hostage in Firuzabad", "strength": 2}}]}}
 
 
 
@@ -345,6 +317,54 @@ Output:
 ##
 ("relationship"<|>DURKE BATAGLANI<|>FIRUZABAD<|>Durke Bataglani was a hostage in Firuzabad<|>2)
 <|COMPLETE|>
+
+######################
+-Real Data-
+######################
+Text: {input_text}
+######################
+Output:
+"""
+
+UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_JSON_PROMPT = """
+-Goal-
+Given a text document that is potentially relevant to this activity, first identify all entities needed from the text in order to capture the information and ideas in the text.
+Next, report all relationships among the identified entities.
+
+-Steps-
+1. Identify all entities. For each identified entity, extract the following information:
+- entity_name: Name of the entity, capitalized
+- entity_type: Suggest several labels or categories for the entity. The categories should not be specific, but should be as general as possible.
+- entity_description: Comprehensive description of the entity's attributes and activities
+Format each entity as a JSON object with the following format:
+
+{{"name": <entity name>, "type": <type>, "description": <entity description>}}
+
+2. From the entities identified in step 1, identify all pairs of (source_entity, target_entity) that are *clearly related* to each other.
+For each pair of related entities, extract the following information:
+- source_entity: name of the source entity, as identified in step 1
+- target_entity: name of the target entity, as identified in step 1
+- relationship_description: explanation as to why you think the source entity and the target entity are related to each other
+- relationship_strength: a numeric score indicating strength of the relationship between the source entity and target entity
+Format each relationship as a JSON object with the following format:
+
+{{"source": <source_entity>, "target": <target_entity>, "description": <relationship_description>, "strength": <relationship_strength>}}
+
+3. Return output in {language} as a single JSON object with two keys, "entities" and "relationships", each holding the list of objects identified in steps 1 and 2:
+
+{{"entities": [...], "relationships": [...]}}
+
+4. If you have to translate into {language}, just translate the descriptions, nothing else!
+
+######################
+-Examples-
+######################
+Example 1:
+Text:
+The Verdantis's Central Institution is scheduled to meet on Monday and Thursday, with the institution planning to release its latest policy decision on Thursday at 1:30 p.m. PDT, followed by a press conference where Central Institution Chair Martin Smith will take questions. Investors expect the Market Strategy Committee to hold its benchmark interest rate steady in a range of 3.5%-3.75%.
+######################
+Output:
+{{"entities": [{{"name": "CENTRAL INSTITUTION", "type": "ORGANIZATION", "description": "The Central Institution is the Federal Reserve of Verdantis, which is setting interest rates on Monday and Thursday"}}, {{"name": "MARTIN SMITH", "type": "PERSON", "description": "Martin Smith is the chair of the Central Institution"}}, {{"name": "MARKET STRATEGY COMMITTEE", "type": "ORGANIZATION", "description": "The Central Institution committee makes key decisions about interest rates and the growth of Verdantis's money supply"}}], "relationships": [{{"source": "MARTIN SMITH", "target": "CENTRAL INSTITUTION", "description": "Martin Smith is the Chair of the Central Institution and will answer questions at a press conference", "strength": 9}}]}}
 
 ######################
 -Real Data-

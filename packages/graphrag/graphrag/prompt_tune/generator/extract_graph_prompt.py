@@ -12,6 +12,7 @@ from graphrag.prompt_tune.template.extract_graph import (
     GRAPH_EXTRACTION_JSON_PROMPT,
     GRAPH_EXTRACTION_PROMPT,
     UNTYPED_EXAMPLE_EXTRACTION_TEMPLATE,
+    UNTYPED_GRAPH_EXTRACTION_JSON_PROMPT,
     UNTYPED_GRAPH_EXTRACTION_PROMPT,
 )
 from graphrag.tokenizer.get_tokenizer import get_tokenizer
@@ -52,7 +53,11 @@ def create_extract_graph_prompt(
     prompt = (
         (GRAPH_EXTRACTION_JSON_PROMPT if json_mode else GRAPH_EXTRACTION_PROMPT)
         if entity_types
-        else UNTYPED_GRAPH_EXTRACTION_PROMPT
+        else (
+            UNTYPED_GRAPH_EXTRACTION_JSON_PROMPT
+            if json_mode
+            else UNTYPED_GRAPH_EXTRACTION_PROMPT
+        )
     )
     if isinstance(entity_types, list):
         entity_types = ", ".join(map(str, entity_types))

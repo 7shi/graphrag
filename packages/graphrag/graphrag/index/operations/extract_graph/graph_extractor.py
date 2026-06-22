@@ -4,8 +4,6 @@
 """Graph extraction helpers that return tabular data."""
 
 import logging
-import os
-import re
 import traceback
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +11,7 @@ import pandas as pd
 from graphrag_llm.utils import (
     CompletionMessagesBuilder,
 )
+from pydantic import BaseModel, Field
 
 from graphrag.index.typing.error_handler import ErrorHandlerFn
 from graphrag.index.utils.string import clean_str
@@ -26,24 +25,41 @@ if TYPE_CHECKING:
     from graphrag_llm.types import LLMCompletionResponse
 
 INPUT_TEXT_KEY = "input_text"
-RECORD_DELIMITER_KEY = "record_delimiter"
-COMPLETION_DELIMITER_KEY = "completion_delimiter"
 ENTITY_TYPES_KEY = "entity_types"
 
-# The tuple delimiter separates the fields within a single entity/relationship
-# record. It defaults to "<|>", but some local models (e.g. gemma) fail to emit
-# that token reliably and collapse it to ">" or "|", which silently drops records.
-# It can be overridden via the GRAPHRAG_TUPLE_DELIMITER environment variable so a
-# delimiter the model can reproduce faithfully (e.g. one without "|") may be used.
-# The override is applied both when parsing the model output AND when rendering the
-# prompt (the literal "<|>" in the few-shot examples is rewritten to match), so a
-# single env var keeps the prompt and the parser consistent.
-DEFAULT_TUPLE_DELIMITER = "<|>"
-TUPLE_DELIMITER = os.environ.get("GRAPHRAG_TUPLE_DELIMITER", DEFAULT_TUPLE_DELIMITER)
-RECORD_DELIMITER = "##"
-COMPLETION_DELIMITER = "<|COMPLETE|>"
-
 logger = logging.getLogger(__name__)
+
+
+class EntityModel(BaseModel):
+    """A single extracted entity."""
+
+    name: str = Field(description="Name of the entity, capitalized")
+    type: str = Field(description="One of the provided entity types")
+    description: str = Field(
+        description="Comprehensive description of the entity's attributes and activities"
+    )
+
+
+class RelationshipModel(BaseModel):
+    """A single extracted relationship between two entities."""
+
+    source: str = Field(description="Name of the source entity")
+    target: str = Field(description="Name of the target entity")
+    description: str = Field(
+        description="Explanation of why the source and target entities are related"
+    )
+    # Defaulted so a model that omits the score does not fail schema validation;
+    # mirrors the previous parser's fallback weight of 1.0.
+    strength: float = Field(
+        default=1.0, description="Numeric score for the relationship strength"
+    )
+
+
+class GraphExtractionResult(BaseModel):
+    """The structured response shape for a single extraction call."""
+
+    entities: list[EntityModel] = Field(default_factory=list)
+    relationships: list[RelationshipModel] = Field(default_factory=list)
 
 
 class GraphExtractor:
@@ -86,23 +102,13 @@ class GraphExtractor:
             )
             return _empty_entities_df(), _empty_relationships_df()
 
-        return self._process_result(
-            result,
-            source_id,
-            TUPLE_DELIMITER,
-            RECORD_DELIMITER,
-        )
+        return self._process_result(result, source_id)
 
-    async def _process_document(self, text: str, entity_types: list[str]) -> str:
-        # Rewrite the literal default delimiter in the prompt (few-shot examples,
-        # format instructions) to the configured one so the model is taught the
-        # same delimiter the parser will split on. A no-op when unchanged.
-        prompt = self._extraction_prompt
-        if TUPLE_DELIMITER != DEFAULT_TUPLE_DELIMITER:
-            prompt = prompt.replace(DEFAULT_TUPLE_DELIMITER, TUPLE_DELIMITER)
-
+    async def _process_document(
+        self, text: str, entity_types: list[str]
+    ) -> GraphExtractionResult:
         messages_builder = CompletionMessagesBuilder().add_user_message(
-            prompt.format(**{
+            self._extraction_prompt.format(**{
                 INPUT_TEXT_KEY: text,
                 ENTITY_TYPES_KEY: ",".join(entity_types),
             })
@@ -110,9 +116,10 @@ class GraphExtractor:
 
         response: LLMCompletionResponse = await self._model.completion_async(
             messages=messages_builder.build(),
+            response_format=GraphExtractionResult,
         )  # type: ignore
-        results = response.content
-        messages_builder.add_assistant_message(results)
+        result: GraphExtractionResult = response.formatted_response  # type: ignore
+        messages_builder.add_assistant_message(response.content)
 
         # if gleanings are specified, enter a loop to extract more entities
         # there are two exit criteria: (a) we hit the configured max, (b) the model says there are no more entities
@@ -121,10 +128,12 @@ class GraphExtractor:
                 messages_builder.add_user_message(CONTINUE_PROMPT)
                 response: LLMCompletionResponse = await self._model.completion_async(
                     messages=messages_builder.build(),
+                    response_format=GraphExtractionResult,
                 )  # type: ignore
-                response_text = response.content
-                messages_builder.add_assistant_message(response_text)
-                results += response_text
+                glean: GraphExtractionResult = response.formatted_response  # type: ignore
+                result.entities.extend(glean.entities)
+                result.relationships.extend(glean.relationships)
+                messages_builder.add_assistant_message(response.content)
 
                 # if this is the final glean, don't bother updating the continuation flag
                 if i >= self._max_gleanings - 1:
@@ -137,56 +146,51 @@ class GraphExtractor:
                 if response.content != "Y":
                     break
 
-        return results
+        return result
 
     def _process_result(
         self,
-        result: str,
+        result: GraphExtractionResult,
         source_id: str,
-        tuple_delimiter: str,
-        record_delimiter: str,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Parse the result string into entity and relationship data frames."""
+        """Convert the structured result into entity and relationship data frames."""
         entities: list[dict[str, Any]] = []
         relationships: list[dict[str, Any]] = []
+        seen_entities: set[tuple[str, str]] = set()
+        seen_relationships: set[tuple[str, str]] = set()
 
-        records = [r.strip() for r in result.split(record_delimiter)]
-
-        for raw_record in records:
-            record = re.sub(r"^\(|\)$", "", raw_record.strip())
-            if not record or record == COMPLETION_DELIMITER:
+        for entity in result.entities:
+            entity_name = clean_str(entity.name.upper())
+            entity_type = clean_str(entity.type.upper())
+            if not entity_name:
                 continue
+            key = (entity_name, entity_type)
+            if key in seen_entities:
+                continue
+            seen_entities.add(key)
+            entities.append({
+                "title": entity_name,
+                "type": entity_type,
+                "description": clean_str(entity.description),
+                "source_id": source_id,
+            })
 
-            record_attributes = record.split(tuple_delimiter)
-            record_type = record_attributes[0]
-
-            if record_type == '"entity"' and len(record_attributes) >= 4:
-                entity_name = clean_str(record_attributes[1].upper())
-                entity_type = clean_str(record_attributes[2].upper())
-                entity_description = clean_str(record_attributes[3])
-                entities.append({
-                    "title": entity_name,
-                    "type": entity_type,
-                    "description": entity_description,
-                    "source_id": source_id,
-                })
-
-            if record_type == '"relationship"' and len(record_attributes) >= 5:
-                source = clean_str(record_attributes[1].upper())
-                target = clean_str(record_attributes[2].upper())
-                edge_description = clean_str(record_attributes[3])
-                try:
-                    weight = float(record_attributes[-1])
-                except ValueError:
-                    weight = 1.0
-
-                relationships.append({
-                    "source": source,
-                    "target": target,
-                    "description": edge_description,
-                    "source_id": source_id,
-                    "weight": weight,
-                })
+        for relationship in result.relationships:
+            source = clean_str(relationship.source.upper())
+            target = clean_str(relationship.target.upper())
+            if not source or not target:
+                continue
+            key = (source, target)
+            if key in seen_relationships:
+                continue
+            seen_relationships.add(key)
+            relationships.append({
+                "source": source,
+                "target": target,
+                "description": clean_str(relationship.description),
+                "source_id": source_id,
+                "weight": float(relationship.strength),
+            })
 
         entities_df = pd.DataFrame(entities) if entities else _empty_entities_df()
         relationships_df = (

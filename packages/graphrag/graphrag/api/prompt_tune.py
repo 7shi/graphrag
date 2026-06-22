@@ -141,7 +141,7 @@ async def generate_indexing_prompts(
         entity_types=entity_types,
         docs=doc_list,
         language=language,
-        json_mode=False,  # config.llm.model_supports_json should be used, but these prompts are used in non-json mode by the index engine
+        json_mode=True,  # the index engine extracts via structured output, so tuned prompts must match the JSON schema
     )
 
     logger.info("Generating entity extraction prompt...")
@@ -150,7 +150,7 @@ async def generate_indexing_prompts(
         docs=doc_list,
         examples=examples,
         language=language,
-        json_mode=False,  # config.llm.model_supports_json should be used, but these prompts are used in non-json mode by the index engine
+        json_mode=True,  # the index engine extracts via structured output, so tuned prompts must match the JSON schema
         tokenizer=get_tokenizer(model_config=extract_graph_llm_settings),
         max_token_count=max_tokens,
         min_examples_required=min_examples_required,

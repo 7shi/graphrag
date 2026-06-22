@@ -8,15 +8,17 @@ from graphrag_llm.completion import create_completion
 from graphrag_llm.config import LLMProviderType, ModelConfig
 
 SIMPLE_EXTRACTION_RESPONSE = """
-("entity"<|>TEST_ENTITY_1<|>COMPANY<|>TEST_ENTITY_1 is a test company)
-##
-("entity"<|>TEST_ENTITY_2<|>COMPANY<|>TEST_ENTITY_2 owns TEST_ENTITY_1 and also shares an address with TEST_ENTITY_1)
-##
-("entity"<|>TEST_ENTITY_3<|>PERSON<|>TEST_ENTITY_3 is director of TEST_ENTITY_1)
-##
-("relationship"<|>TEST_ENTITY_1<|>TEST_ENTITY_2<|>TEST_ENTITY_1 and TEST_ENTITY_2 are related because TEST_ENTITY_1 is 100% owned by TEST_ENTITY_2 and the two companies also share the same address)<|>2)
-##
-("relationship"<|>TEST_ENTITY_1<|>TEST_ENTITY_3<|>TEST_ENTITY_1 and TEST_ENTITY_3 are related because TEST_ENTITY_3 is director of TEST_ENTITY_1<|>1))
+{
+  "entities": [
+    {"name": "TEST_ENTITY_1", "type": "COMPANY", "description": "TEST_ENTITY_1 is a test company"},
+    {"name": "TEST_ENTITY_2", "type": "COMPANY", "description": "TEST_ENTITY_2 owns TEST_ENTITY_1 and also shares an address with TEST_ENTITY_1"},
+    {"name": "TEST_ENTITY_3", "type": "PERSON", "description": "TEST_ENTITY_3 is director of TEST_ENTITY_1"}
+  ],
+  "relationships": [
+    {"source": "TEST_ENTITY_1", "target": "TEST_ENTITY_2", "description": "TEST_ENTITY_1 and TEST_ENTITY_2 are related because TEST_ENTITY_1 is 100% owned by TEST_ENTITY_2 and the two companies also share the same address", "strength": 2},
+    {"source": "TEST_ENTITY_1", "target": "TEST_ENTITY_3", "description": "TEST_ENTITY_1 and TEST_ENTITY_3 are related because TEST_ENTITY_3 is director of TEST_ENTITY_1", "strength": 1}
+  ]
+}
 """.strip()
 
 

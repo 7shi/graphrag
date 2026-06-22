@@ -13,6 +13,7 @@ from graphrag_llm.utils import (
 from graphrag.prompt_tune.prompt.entity_relationship import (
     ENTITY_RELATIONSHIPS_GENERATION_JSON_PROMPT,
     ENTITY_RELATIONSHIPS_GENERATION_PROMPT,
+    UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_JSON_PROMPT,
     UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_PROMPT,
 )
 
@@ -57,9 +58,11 @@ async def generate_entity_relationship_examples(
         ]
     else:
         messages = [
-            UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_PROMPT.format(
-                input_text=doc, language=language
-            )
+            (
+                UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_JSON_PROMPT
+                if json_mode
+                else UNTYPED_ENTITY_RELATIONSHIPS_GENERATION_PROMPT
+            ).format(input_text=doc, language=language)
             for doc in docs_list
         ]
 
