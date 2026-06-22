@@ -5,10 +5,14 @@ relationship が silently drop されることが判明した。その手当て�
 （JSON）へ移行**し（[`ENTITY_RELATIONSHIP.md`](ENTITY_RELATIONSHIP.md) / [`DIFF.md`](DIFF.md)）、
 実テキストでの動作を end-to-end に検証した。本ドキュメントはその**最終結果**を要約する。
 
-## 条件
+題材・質問・模範解答はリポジトリ [7shi/bou-thakuranir_haat](https://github.com/7shi/bou-thakuranir_haat) で公開されている。
 
-- **題材**: Rabindranath Tagore『Bou-Thakuranir Haat』英訳（全 37 章、text_units 66）。
-- **質問**: `questions.jsonl` の 50 問（`single`/`cross` ≈ Local/Global 対応）。模範解答 `answers.jsonl`。
+- **テキスト**: Rabindranath Tagore『Bou-Thakuranir Haat』英訳（全 37 章、text_units 66）—
+  [`all/en-gemini.md`](https://github.com/7shi/bou-thakuranir_haat/blob/main/all/en-gemini.md)
+- **質問・模範解答**: 50 問（`single`/`cross` ≈ Local/Global 対応）—
+  [`questions-en.jsonl`](https://github.com/7shi/bou-thakuranir_haat/blob/main/questions-en.jsonl)
+
+## 条件
 - **抽出**: prompt-tune（`--discover-entity-types`）＋**構造化出力**。LLM は Ollama `gemma4:26b`
   （`reasoning_effort: none`）、埋め込み `embeddinggemma`、`concurrent_requests: 1`（逐次実行）。
 - 全 50 問を Local / Global で回答収集し、引用タグを章へ展開して模範解答と突き合わせた。
