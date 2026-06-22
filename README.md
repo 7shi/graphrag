@@ -1,10 +1,10 @@
 # GraphRAG
 
-> **NOTE (fork):** This branch (`feature/llm-rawlog`) adds two changes on top of upstream:
+> **NOTE (fork):** This branch `feature/llm-rawlog` adds two changes on top of upstream:
 > 1. **rawlog** — an XML logging hook that records every LLM request/response to disk, added to support investigation while writing articles about GraphRAG.
-> 2. **Structured-output (JSON) extraction** — graph extraction migrated from tuple-delimiter parsing to Pydantic-schema `response_format`, after rawlog revealed that local Gemma 4 could not reliably follow the `<|>` / `##` format and silently dropped records (especially relationships).
+> 2. **Structured-output (JSON) extraction** — graph extraction migrated from tuple-delimiter parsing to Pydantic-schema `response_format`, after rawlog revealed that local Gemma 4 could not reliably follow the `<|>` / `##` format and silently dropped records (especially relationships). 👉 [rawlog/ENTITY_RELATIONSHIP.md](./rawlog/ENTITY_RELATIONSHIP.md)
 >
-> See [`rawlog/DIFF.md`](rawlog/DIFF.md) for a full diff summary (Japanese).
+> See [rawlog/DIFF.md](./rawlog/DIFF.md) for a full diff summary (Japanese).
 
 👉 [Microsoft Research Blog Post](https://www.microsoft.com/en-us/research/blog/graphrag-unlocking-llm-discovery-on-narrative-private-data/)<br/>
 👉 [Read the docs](https://microsoft.github.io/graphrag)<br/>
