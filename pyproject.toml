@@ -52,6 +52,9 @@ dev = [
     "pytest-xdist[psutil]~=3.8.0",
 ]
 
+[tool.setuptools.packages.find]
+exclude = ["work*", "rawlog*"]
+
 [tool.uv]
 package = false
 
