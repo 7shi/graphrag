@@ -107,12 +107,15 @@ class GraphExtractor:
     async def _process_document(
         self, text: str, entity_types: list[str]
     ) -> GraphExtractionResult:
-        messages_builder = CompletionMessagesBuilder().add_user_message(
-            self._extraction_prompt.format(**{
-                INPUT_TEXT_KEY: text,
-                ENTITY_TYPES_KEY: ",".join(entity_types),
-            })
-        )
+        # NOTE: The prompt is filled with str.replace rather than str.format.
+        # The JSON examples/schema in the prompt contain literal "{" / "}"
+        # characters that would collide with str.format placeholders (and the
+        # prompt-tune generated prompts embed raw JSON with single braces). Only
+        # the two named placeholders are substituted here.
+        prompt = self._extraction_prompt.replace(
+            "{" + ENTITY_TYPES_KEY + "}", ",".join(entity_types)
+        ).replace("{" + INPUT_TEXT_KEY + "}", text)
+        messages_builder = CompletionMessagesBuilder().add_user_message(prompt)
 
         response: LLMCompletionResponse = await self._model.completion_async(
             messages=messages_builder.build(),

@@ -89,9 +89,16 @@ model that omits the score no longer drops the whole relationship.
 ### Prompt
 
 `GRAPH_EXTRACTION_PROMPT` was rewritten to instruct JSON output and the
-few-shot examples were re-expressed as JSON. Literal `{` / `}` in the examples
-are escaped as `{{` / `}}` because the prompt is rendered with `str.format`.
-The `<|>` / `##` / `<|COMPLETE|>` instructions were removed.
+few-shot examples were re-expressed as JSON. The `<|>` / `##` / `<|COMPLETE|>`
+instructions were removed.
+
+Because the prompt now contains literal JSON braces (`{` / `}`) in its schema
+and examples, the runtime no longer fills the prompt with `str.format` (whose
+placeholders would collide with those braces). Instead `_process_document`
+substitutes only the two named placeholders with `str.replace`:
+`{entity_types}` and `{input_text}`. This also lets `prompt-tune` emit prompts
+whose embedded example JSON uses plain single braces — no escaping required, so
+a tuned `extract_graph.txt` works verbatim.
 
 ## Files changed
 
