@@ -4,6 +4,7 @@
 """Graph extraction helpers that return tabular data."""
 
 import logging
+import os
 import re
 import traceback
 from typing import TYPE_CHECKING, Any
@@ -28,7 +29,17 @@ INPUT_TEXT_KEY = "input_text"
 RECORD_DELIMITER_KEY = "record_delimiter"
 COMPLETION_DELIMITER_KEY = "completion_delimiter"
 ENTITY_TYPES_KEY = "entity_types"
-TUPLE_DELIMITER = "<|>"
+
+# The tuple delimiter separates the fields within a single entity/relationship
+# record. It defaults to "<|>", but some local models (e.g. gemma) fail to emit
+# that token reliably and collapse it to ">" or "|", which silently drops records.
+# It can be overridden via the GRAPHRAG_TUPLE_DELIMITER environment variable so a
+# delimiter the model can reproduce faithfully (e.g. one without "|") may be used.
+# The override is applied both when parsing the model output AND when rendering the
+# prompt (the literal "<|>" in the few-shot examples is rewritten to match), so a
+# single env var keeps the prompt and the parser consistent.
+DEFAULT_TUPLE_DELIMITER = "<|>"
+TUPLE_DELIMITER = os.environ.get("GRAPHRAG_TUPLE_DELIMITER", DEFAULT_TUPLE_DELIMITER)
 RECORD_DELIMITER = "##"
 COMPLETION_DELIMITER = "<|COMPLETE|>"
 
@@ -83,8 +94,15 @@ class GraphExtractor:
         )
 
     async def _process_document(self, text: str, entity_types: list[str]) -> str:
+        # Rewrite the literal default delimiter in the prompt (few-shot examples,
+        # format instructions) to the configured one so the model is taught the
+        # same delimiter the parser will split on. A no-op when unchanged.
+        prompt = self._extraction_prompt
+        if TUPLE_DELIMITER != DEFAULT_TUPLE_DELIMITER:
+            prompt = prompt.replace(DEFAULT_TUPLE_DELIMITER, TUPLE_DELIMITER)
+
         messages_builder = CompletionMessagesBuilder().add_user_message(
-            self._extraction_prompt.format(**{
+            prompt.format(**{
                 INPUT_TEXT_KEY: text,
                 ENTITY_TYPES_KEY: ",".join(entity_types),
             })
