@@ -1,6 +1,7 @@
 # GraphRAG
 
-> **NOTE (fork):** This branch `feature/llm-rawlog` adds two changes on top of upstream:
+> [!NOTE]
+> This fork (`feature/llm-rawlog` branch) adds two changes on top of upstream:
 > 1. **rawlog** — an XML logging hook that records every LLM request/response to disk, added to support investigation while writing articles about GraphRAG.
 > 2. **Structured-output (JSON) extraction** — graph extraction migrated from tuple-delimiter parsing to Pydantic-schema `response_format`, after rawlog revealed that local Gemma 4 could not reliably follow the `<|>` / `##` format and silently dropped records (especially relationships). 👉 [rawlog/ENTITY_RELATIONSHIP.md](./rawlog/ENTITY_RELATIONSHIP.md)
 >
