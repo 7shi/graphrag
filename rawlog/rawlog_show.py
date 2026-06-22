@@ -13,7 +13,7 @@ def unescape_cdata_content(s: str) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run python show_response.py <path_to_xml_file>")
+        print("Usage: uv run python rawlog_show.py <path_to_xml_file>")
         sys.exit(1)
         
     filepath = sys.argv[1]

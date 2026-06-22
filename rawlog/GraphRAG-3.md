@@ -1,6 +1,6 @@
 # GraphRAG 実行ログ（rawlogs）詳細分析レポート
 
-このドキュメントは、GraphRAG の各実行プロセス（`prompt-tune`、`index`、`query --method global`、`query --method local`）で記録された XML ログファイル群を、補助スクリプト（`analyze_log.py`、`analyze_fields.py`）およびローカルLLM（`gemma4:26b`）を用いて解析・要約した結果をまとめたレポートです。
+このドキュメントは、GraphRAG の各実行プロセス（`prompt-tune`、`index`、`query --method global`、`query --method local`）で記録された XML ログファイル群を、補助スクリプト（`rawlog_log.py`、`rawlog_fields.py`）およびローカルLLM（`gemma4:26b`）を用いて解析・要約した結果をまとめたレポートです。
 
 各フェーズで LLM がどのようなクエリを処理し、どのような形式（JSON / テキスト）でレスポンスを出力しているかを解説します。
 

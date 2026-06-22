@@ -115,9 +115,9 @@ serve_docs = "mkdocs serve"
 build_docs = "mkdocs build"
 _build_packages = "uv build --all-packages"
 _sync = "uv sync --all-packages"
-analyze_fields = "python rawlog/analyze_fields.py"
-analyze_log    = "python rawlog/analyze_log.py"
-show_response  = "python rawlog/show_response.py"
+rawlog_fields = "python rawlog/rawlog_fields.py"
+rawlog_log    = "python rawlog/rawlog_log.py"
+rawlog_show   = "python rawlog/rawlog_show.py"
 
 [[tool.poe.tasks.build]]
 sequence = ['_copy_build_assets', '_build_packages']

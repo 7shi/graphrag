@@ -101,7 +101,7 @@
 - ルートに `dependencies = ["graphrag", "llm7shi"]` を追加。
   `[tool.uv.sources]` に `graphrag = { workspace = true }` と
   `llm7shi = { git = "https://github.com/7shi/llm7shi.git" }` を追加。
-- poe タスク `analyze_fields` / `analyze_log` / `show_response`（`rawlog/` の解析ツール）を追加。
+- poe タスク `rawlog_fields` / `rawlog_log` / `rawlog_show`（`rawlog/` の解析ツール）を追加。
 - dev 依存の pytest 系を `~=`（互換リリース固定）→ `>=`（下限のみ）へ緩和。
 
 ### `.gitignore`（+5 −1）

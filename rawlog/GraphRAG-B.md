@@ -57,14 +57,14 @@ GraphRAG は `asyncio`・マルチスレッドで大量のLLMリクエストを�
 ### 1.3 分析補助ツール
 蓄積されたログを効率的に処理・分析するための Python スクリプトです。
 
-* **`analyze_log.py` (LLMを使用)**: XMLファイルに保存された会話コンテキストを復元してローカルLLMに渡し、内容を要約・解説させるスクリプトです（JSONL形式で随時出力・レジューム対応）。
-* **`analyze_fields.py` (LLM不要の高速処理)**: レスポンスがJSONであるかをパースし、JSONであればトップレベルのキー（フィールド）を抽出して、同一構造を持つファイルを自動的にグループ化します。連番のファイル一覧は `{00001..00223}.xml` のようにブレース展開表記でコンパクトにまとめて出力します。
+* **`rawlog_log.py` (LLMを使用)**: XMLファイルに保存された会話コンテキストを復元してローカルLLMに渡し、内容を要約・解説させるスクリプトです（JSONL形式で随時出力・レジューム対応）。
+* **`rawlog_fields.py` (LLM不要の高速処理)**: レスポンスがJSONであるかをパースし、JSONであればトップレベルのキー（フィールド）を抽出して、同一構造を持つファイルを自動的にグループ化します。連番のファイル一覧は `{00001..00223}.xml` のようにブレース展開表記でコンパクトにまとめて出力します。
 
 いずれも `poe` タスク経由でディレクトリ単位で実行できます。
 
 ```bash
-uv run poe analyze_log    graphrag_quickstart/rawlogs/1-prompt-tune
-uv run poe analyze_fields graphrag_quickstart/rawlogs/2-index
+uv run poe rawlog_log    graphrag_quickstart/rawlogs/1-prompt-tune
+uv run poe rawlog_fields graphrag_quickstart/rawlogs/2-index
 ```
 
 ### 1.4 長すぎるエラーメッセージの抑制

@@ -76,7 +76,7 @@ def analyze_file(filepath: str) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run python analyze_log.py <directory_path_or_file_path> [output_jsonl_path]")
+        print("Usage: uv run python rawlog_log.py <directory_path_or_file_path> [output_jsonl_path]")
         sys.exit(1)
         
     target_path = sys.argv[1]

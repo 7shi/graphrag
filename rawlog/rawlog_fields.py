@@ -93,7 +93,7 @@ def analyze_file_fields(filepath: str) -> tuple[str, list[str]]:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run python analyze_fields.py <directory_path_or_file_path> [output_jsonl_path] [output_groups_path]")
+        print("Usage: uv run python rawlog_fields.py <directory_path_or_file_path> [output_jsonl_path] [output_groups_path]")
         sys.exit(1)
         
     target_path = sys.argv[1]

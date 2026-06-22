@@ -64,7 +64,7 @@ LLMへのリクエストメッセージ履歴（`messages`）をそのままの�
 
 蓄積された大量のログファイルを1つずつ、あるいはディレクトリ単位で効率的に処理・分析するための Python スクリプトを作成しました。
 
-### 3.1 [analyze_log.py](analyze_log.py) (LLMを使用)
+### 3.1 [rawlog_log.py](rawlog_log.py) (LLMを使用)
 XMLファイルに保存された `messages` の会話コンテキスト（`system`, `user`, `assistant` などの履歴）をそのまま忠実に復元してローカルLLMに渡し、その末尾に「要約・確認」の確認ターンを付け足して何を行っているか解説させるスクリプトです。
 
 * **機能:**
@@ -73,10 +73,10 @@ XMLファイルに保存された `messages` の会話コンテキスト（`syst
   * レジューム機能を備えており、すでに分析済みのファイルは自動でスキップして処理を再開します。
 * **実行コマンド例:**
   ```bash
-  uv run poe analyze_log graphrag_quickstart/rawlogs/1-prompt-tune
+  uv run poe rawlog_log graphrag_quickstart/rawlogs/1-prompt-tune
   ```
 
-### 3.2 [analyze_fields.py](analyze_fields.py) (LLM不要の高速処理)
+### 3.2 [rawlog_fields.py](rawlog_fields.py) (LLM不要の高速処理)
 LLMを呼び出さず、ローカルの Python ロジックのみでXML内のレスポンス（最後の `<message>`）がJSONであるかをパースし、JSONであればそのトップレベルのキー（フィールド）を抽出して分析するスクリプトです。
 
 * **機能:**
@@ -85,7 +85,7 @@ LLMを呼び出さず、ローカルの Python ロジックのみでXML内のレ
   * **グループ結果の要約（ブレース展開表記）**: ファイル名の出力が長くなるのを防ぐため、連番のファイル一覧は `{00001..00223}.xml` のように自動でマージしてコンパクトに出力します。
 * **実行コマンド例:**
   ```bash
-  uv run poe analyze_fields graphrag_quickstart/rawlogs/2-index
+  uv run poe rawlog_fields graphrag_quickstart/rawlogs/2-index
   ```
 * **グループ化テキストの出力例（`2-index-groups.txt`）:**
   ```text

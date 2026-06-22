@@ -36,19 +36,19 @@ A・B は、以下の作業段階のドキュメントを統合・再構成し�
 
 | スクリプト | 用途 | LLM |
 | --- | --- | --- |
-| [analyze_log.py](analyze_log.py) | XML に保存された会話コンテキストを復元してローカル LLM に渡し、内容を要約・解説させる（JSONL 出力・レジューム対応）。 | 使用 |
-| [analyze_fields.py](analyze_fields.py) | レスポンスが JSON かをパースし、トップレベルのキー構造でファイルを自動グループ化する（高速）。 | 不要 |
-| [show_response.py](show_response.py) | 指定した XML ログから `assistant` のレスポンス部分だけを取り出して表示する。 | 不要 |
+| [rawlog_log.py](rawlog_log.py) | XML に保存された会話コンテキストを復元してローカル LLM に渡し、内容を要約・解説させる（JSONL 出力・レジューム対応）。 | 使用 |
+| [rawlog_fields.py](rawlog_fields.py) | レスポンスが JSON かをパースし、トップレベルのキー構造でファイルを自動グループ化する（高速）。 | 不要 |
+| [rawlog_show.py](rawlog_show.py) | 指定した XML ログから `assistant` のレスポンス部分だけを取り出して表示する。 | 不要 |
 
 ### 実行例
 
 ```bash
 # ディレクトリ単位で解析（poe タスク）
-uv run poe analyze_log    graphrag_quickstart/rawlogs/1-prompt-tune
-uv run poe analyze_fields graphrag_quickstart/rawlogs/2-index
+uv run poe rawlog_log    graphrag_quickstart/rawlogs/1-prompt-tune
+uv run poe rawlog_fields graphrag_quickstart/rawlogs/2-index
 
 # 個別の XML からレスポンスだけを表示
-uv run poe show_response  graphrag_quickstart/rawlogs/3-global/00003.xml
+uv run poe rawlog_show   graphrag_quickstart/rawlogs/3-global/00003.xml
 ```
 
 > rawlogs の記録方法や XML の仕様、`GRAPHRAG_RAWLOG_DIR` によるフェーズ別出力の切り替えなどは [GraphRAG-B.md](GraphRAG-B.md) を参照してください。
