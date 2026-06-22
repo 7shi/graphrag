@@ -23,6 +23,7 @@ authors = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "botocore>=1.43.34",
     "graphrag",
     "llm7shi",
 ]
