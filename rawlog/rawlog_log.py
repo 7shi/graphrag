@@ -1,4 +1,5 @@
 import sys
+import argparse
 import os
 import glob
 import re
@@ -75,15 +76,16 @@ def analyze_file(filepath: str) -> str:
         return f"ERROR: Generation failed ({e})"
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: uv run python rawlog_log.py <directory_path_or_file_path> [output_jsonl_path]")
-        sys.exit(1)
-        
-    target_path = sys.argv[1]
-    
+    parser = argparse.ArgumentParser(description="XMLログの会話コンテキストをローカルLLMで要約します。")
+    parser.add_argument("target", help="ディレクトリまたはXMLファイルのパス")
+    parser.add_argument("output_jsonl", nargs="?", help="出力JSOLパス（省略時は自動生成）")
+    args = parser.parse_args()
+
+    target_path = args.target
+
     # 1. JSONL出力先の決定 (デフォルトは対象の親ディレクトリ内に配置される同名の .jsonl)
-    if len(sys.argv) >= 3:
-        jsonl_path = sys.argv[2]
+    if args.output_jsonl:
+        jsonl_path = args.output_jsonl
     else:
         norm_path = target_path.rstrip(os.sep)
         if os.path.isdir(target_path):

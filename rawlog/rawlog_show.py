@@ -1,4 +1,5 @@
 import sys
+import argparse
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -12,11 +13,11 @@ def unescape_cdata_content(s: str) -> str:
     return re.sub(r"\]\]\s*\>", "]]>", s)
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: uv run python rawlog_show.py <path_to_xml_file>")
-        sys.exit(1)
-        
-    filepath = sys.argv[1]
+    parser = argparse.ArgumentParser(description="XMLログからassistantのレスポンスを表示します。")
+    parser.add_argument("filepath", help="XMLファイルのパス")
+    args = parser.parse_args()
+
+    filepath = args.filepath
     if not os.path.exists(filepath):
         print(f"Error: File not found: {filepath}")
         sys.exit(1)

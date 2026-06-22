@@ -1,4 +1,5 @@
 import sys
+import argparse
 import os
 import glob
 import re
@@ -92,12 +93,14 @@ def analyze_file_fields(filepath: str) -> tuple[str, list[str]]:
         return "error_parse_failed", []
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: uv run python rawlog_fields.py <directory_path_or_file_path> [output_jsonl_path] [output_groups_path]")
-        sys.exit(1)
-        
-    target_path = sys.argv[1]
-    
+    parser = argparse.ArgumentParser(description="XMLログのレスポンスJSONをフィールド別にグループ化します。")
+    parser.add_argument("target", help="ディレクトリまたはXMLファイルのパス")
+    parser.add_argument("output_jsonl", nargs="?", help="出力JSOLパス（省略時は自動生成）")
+    parser.add_argument("output_groups", nargs="?", help="グループ化結果テキストのパス（省略時は自動生成）")
+    args = parser.parse_args()
+
+    target_path = args.target
+
     # 1. 出力先の決定 (デフォルトは対象親ディレクトリ内の <名前>-fields.jsonl と <名前>-groups.txt)
     norm_path = target_path.rstrip(os.sep)
     if os.path.isdir(target_path):
@@ -106,20 +109,13 @@ def main():
     else:
         dir_name = os.path.basename(os.path.dirname(norm_path))
         parent_dir = os.path.dirname(os.path.dirname(norm_path))
-        
+
     if not dir_name:
         dir_name = "analysis_results"
         parent_dir = "."
-        
-    if len(sys.argv) >= 3:
-        jsonl_path = sys.argv[2]
-    else:
-        jsonl_path = os.path.join(parent_dir, f"{dir_name}-fields.jsonl")
-        
-    if len(sys.argv) >= 4:
-        groups_txt_path = sys.argv[3]
-    else:
-        groups_txt_path = os.path.join(parent_dir, f"{dir_name}-groups.txt")
+
+    jsonl_path = args.output_jsonl or os.path.join(parent_dir, f"{dir_name}-fields.jsonl")
+    groups_txt_path = args.output_groups or os.path.join(parent_dir, f"{dir_name}-groups.txt")
         
     # 2. 対象ファイルのリスト化
     if os.path.isdir(target_path):
