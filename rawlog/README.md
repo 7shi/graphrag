@@ -27,6 +27,7 @@ A・B は、以下の作業段階のドキュメントを統合・再構成し�
 | [GraphRAG-2.md](GraphRAG-2.md) | LLM ログ記録・分析機能の活用ガイド（`lite_llm_completion.py` の改造概要）。 |
 | [GraphRAG-3.md](GraphRAG-3.md) | 実行ログ（rawlogs）詳細分析レポート。 |
 | [GraphRAG-4.md](GraphRAG-4.md) | 実行プロセスとソースコードの対応関係レポート。 |
+| [GraphRAG-5.md](GraphRAG-5.md) | 名詞句抽出（extractor_type）と spaCy の動作仕様まとめ。 |
 
 > GraphRAG-2/3/4 は **B に統合済み**です。
 
